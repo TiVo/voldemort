@@ -37,6 +37,7 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
     private static final Logger logger = Logger.getLogger(KratiStorageEngine.class);
     private final DynamicDataStore datastore;
     private final StripedLock locks;
+    private final boolean persistOnWrite;
 
     public KratiStorageEngine(String name,
                               SegmentFactory segmentFactory,
@@ -44,20 +45,36 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
                               int lockStripes,
                               double hashLoadFactor,
                               int initLevel,
-                              File dataDirectory) {
+                              int batchSize,
+                              int numSyncBatches,
+                              File dataDirectory,
+                              boolean persistOnWrite) {
         super(name);
         try {
             this.datastore = new DynamicDataStore(dataDirectory,
                                                   initLevel,
+                                                  batchSize,
+                                                  numSyncBatches,
                                                   segmentFileSizeMB,
                                                   segmentFactory,
                                                   hashLoadFactor,
                                                   new FnvHashFunction());
             this.locks = new StripedLock(lockStripes);
+            this.persistOnWrite = persistOnWrite;
         } catch(Exception e) {
             throw new VoldemortException("Failure initializing store.", e);
         }
 
+    }
+
+    @Override
+    public void close() throws VoldemortException {
+        try {
+            this.datastore.close();
+        } catch(IOException e) {
+            logger.error("Failed to close store '" + getName() + "': ", e);
+            throw new VoldemortException(e);
+        }
     }
 
     @Override
@@ -157,7 +174,11 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
         synchronized(this.locks.lockFor(key.get())) {
             if(maxVersion == null) {
                 try {
-                    return datastore.delete(key.get());
+                    boolean deleted = datastore.delete(key.get());
+                    if (persistOnWrite) {
+                        datastore.persist();
+                    }
+                    return deleted;
                 } catch(Exception e) {
                     logger.error("Failed to delete key: ", e);
                     throw new VoldemortException("Failed to delete key: " + key, e);
@@ -181,10 +202,15 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
             }
 
             try {
+                boolean deleted;
                 if(returnedValuesList.size() == 0)
-                    return datastore.delete(key.get());
+                    deleted = datastore.delete(key.get());
                 else
-                    return datastore.put(key.get(), assembleValues(returnedValuesList));
+                    deleted = datastore.put(key.get(), assembleValues(returnedValuesList));
+                if(persistOnWrite) {
+                    datastore.persist();
+                }
+                return deleted;
             } catch(Exception e) {
                 String message = "Failed to delete key " + key;
                 logger.error(message, e);
@@ -224,6 +250,9 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
 
             try {
                 datastore.put(key.get(), assembleValues(existingValuesList));
+                if(persistOnWrite) {
+                    datastore.persist();
+                }
             } catch(Exception e) {
                 String message = "Failed to put key " + key;
                 logger.error(message, e);
@@ -259,7 +288,7 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
 
     /**
      * Store the versioned values
-     * 
+     *
      * @param values list of versioned bytes
      * @return the list of versioned values rolled into an array of bytes
      */
@@ -283,8 +312,8 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
 
     /**
      * Splits up value into multiple versioned values
-     * 
-     * @param value
+     *
+     * @param values
      * @return
      * @throws IOException
      */

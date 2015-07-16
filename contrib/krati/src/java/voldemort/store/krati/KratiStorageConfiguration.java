@@ -2,6 +2,7 @@ package voldemort.store.krati;
 
 import java.io.File;
 
+import krati.core.StoreParams;
 import krati.core.segment.MappedSegmentFactory;
 import krati.core.segment.SegmentFactory;
 
@@ -27,21 +28,27 @@ public class KratiStorageConfiguration implements StorageConfiguration {
     private final int lockStripes;
     private final int segmentFileSizeMb;
     private final int initLevel;
+    private final int batchSize;
+    private final int numSyncBatches;
     private final double hashLoadFactor;
     private final Object lock = new Object();
     private final Class<?> factoryClass;
+    private boolean persistOnWrite;
 
     public KratiStorageConfiguration(VoldemortConfig config) {
         Props props = config.getAllProps();
         File kratiDir = new File(config.getDataDirectory(), "krati");
         kratiDir.mkdirs();
         this.dataDirectory = kratiDir.getAbsolutePath();
-        this.segmentFileSizeMb = props.getInt("krati.segment.filesize.mb", 256);
-        this.hashLoadFactor = props.getDouble("krati.load.factor", 0.75);
+        this.segmentFileSizeMb = props.getInt("krati.segment.filesize.mb", StoreParams.SEGMENT_FILE_SIZE_MB_DEFAULT);
+        this.hashLoadFactor = props.getDouble("krati.load.factor", StoreParams.HASH_LOAD_FACTOR_DEFAULT);
         this.initLevel = props.getInt("krati.initlevel", 2);
+        this.batchSize = props.getInt("krati.batch.size", StoreParams.BATCH_SIZE_DEFAULT);
+        this.numSyncBatches = props.getInt("krati.num.sync.batches", StoreParams.NUM_SYNC_BATCHES_DEFAULT);
         this.lockStripes = props.getInt("krati.lock.stripes", 50);
         this.factoryClass = ReflectUtils.loadClass(props.getString("krati.segment.factory.class",
-                                                                   MappedSegmentFactory.class.getName()));
+                MappedSegmentFactory.class.getName()));
+        this.persistOnWrite = props.getBoolean("krati.persist.on.write", false);
     }
 
     public void close() {}
@@ -62,7 +69,10 @@ public class KratiStorageConfiguration implements StorageConfiguration {
                                           lockStripes,
                                           hashLoadFactor,
                                           initLevel,
-                                          storeDir);
+                                          batchSize,
+                                          numSyncBatches,
+                                          storeDir,
+                                          persistOnWrite);
         }
     }
 
