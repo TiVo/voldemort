@@ -178,7 +178,7 @@ clean {
 task copySources (type: Copy) {
     from ('.') { include 'bin/*.sh', 'bin/*.bat' , 'bin/*.py' }
     from ('.') { include  distDir + '/*.jar'}
-    from ('.') { exclude distDir + '/**' ,'bin/**' , 'build/**', '.git/**' , '.gradle/**', 'config/**/data/**' }
+    from ('.') { exclude distDir + '/**' ,'bin/**' , 'build/**', '.git/**' , '.gradle/**', 'config/**/data/**', 'private-lib/je-*.jar', 'lib/je-*.jar' }
     into archiveDirectoryPath
 }
 
@@ -222,8 +222,8 @@ private-lib - > jars that are not available in maven central
 public-lib -> jars available in maven central, but left there for ant build
 lib -> single directory for command line tools to pick it up.
 
-I want to get rid of public-lib when we get rid of the ant support. 
-Private-lib in theory should eventually disappear as well when the prviate-libs 
+I want to get rid of public-lib when we get rid of the ant support.
+Private-lib in theory should eventually disappear as well when the prviate-libs
 are available in maven central or moved to a version available in maven central.
 */
 task copyDeps(type: Copy) {
@@ -552,7 +552,7 @@ dependencies {
     // Other libs...
     compile 'org.apache.tomcat:catalina-ant:6.0.43'
     compile 'org.apache.hadoop:libthrift:0.5.0.0'
-    
+
     // rocksdb from maven
     compile 'org.rocksdb:rocksdbjni:3.6.2'
 }
