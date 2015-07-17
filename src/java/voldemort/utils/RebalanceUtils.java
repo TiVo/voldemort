@@ -60,7 +60,11 @@ public class RebalanceUtils {
 
     private static Logger logger = Logger.getLogger(RebalanceUtils.class);
 
-    public final static List<String> canRebalanceList = Arrays.asList(BdbStorageConfiguration.TYPE_NAME,
+    // we use the bare string "krati" here because KratiStorageConfiguration
+    // will not be built until after this class - if the name in there ever
+    // changes, this will need to change as well
+    public final static List<String> canRebalanceList = Arrays.asList("krati",
+                                                                      BdbStorageConfiguration.TYPE_NAME,
                                                                       ReadOnlyStorageConfiguration.TYPE_NAME);
 
     public final static String currentClusterFileName = "current-cluster.xml";
