@@ -44,6 +44,7 @@ import voldemort.server.rebalance.VoldemortRebalancingException;
 import voldemort.store.StoreDefinition;
 import voldemort.store.StoreDefinitionBuilder;
 import voldemort.store.bdb.BdbStorageConfiguration;
+import voldemort.store.krati.KratiStorageConfiguration;
 import voldemort.store.readonly.ReadOnlyStorageConfiguration;
 import voldemort.tools.PartitionBalance;
 import voldemort.xml.ClusterMapper;
@@ -60,11 +61,8 @@ public class RebalanceUtils {
 
     private static Logger logger = Logger.getLogger(RebalanceUtils.class);
 
-    // we use the bare string "krati" here because KratiStorageConfiguration
-    // will not be built until after this class - if the name in there ever
-    // changes, this will need to change as well
-    public final static List<String> canRebalanceList = Arrays.asList("krati",
-                                                                      BdbStorageConfiguration.TYPE_NAME,
+    public final static List<String> canRebalanceList = Arrays.asList(BdbStorageConfiguration.TYPE_NAME,
+                                                                      KratiStorageConfiguration.TYPE_NAME,
                                                                       ReadOnlyStorageConfiguration.TYPE_NAME);
 
     public final static String currentClusterFileName = "current-cluster.xml";

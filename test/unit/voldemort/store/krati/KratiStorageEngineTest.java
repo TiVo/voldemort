@@ -27,7 +27,7 @@ public class KratiStorageEngineTest extends AbstractStorageEngineTest {
                                             1000,
                                             10,
                                             storeDir,
-                                            true);
+                                            false);
     }
 
     @Override
