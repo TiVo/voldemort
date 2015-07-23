@@ -39,16 +39,19 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
@@ -3441,8 +3444,9 @@ public class AdminClient {
          * @param zoneId zone from which the nodes are chosen from, -1 means no
          *        zone preference
          * @throws InterruptedException
+         * @return list of errors
          */
-        public void restoreDataFromReplications(int nodeId, int parallelTransfers, int zoneId) {
+        public List<String>  restoreDataFromReplications(int nodeId, int parallelTransfers, int zoneId) {
             ExecutorService executors = Executors.newFixedThreadPool(parallelTransfers,
                                                                      new ThreadFactory() {
 
@@ -3453,6 +3457,9 @@ public class AdminClient {
                                                                              return thread;
                                                                          }
                                                                      });
+            List<Future<String>> futures = new ArrayList<Future<String>>();
+            List<String> errors = new ArrayList<String>();
+
             try {
                 List<StoreDefinition> storeDefList = metadataMgmtOps.getRemoteStoreDefList(nodeId)
                                                                     .getValue();
@@ -3474,18 +3481,37 @@ public class AdminClient {
                     }
                 }
                 for(StoreDefinition def: writableStores) {
-                    restoreStoreFromReplication(nodeId, cluster, def, executors, zoneId);
+                    futures.addAll(restoreStoreFromReplication(nodeId, cluster, def, executors, zoneId));
                 }
             } finally {
                 executors.shutdown();
                 try {
                     executors.awaitTermination(adminClientConfig.getRestoreDataTimeoutSec(),
                                                TimeUnit.SECONDS);
+                    for (Future<String> future : futures) {
+                        String error;
+                        try {
+                            error = future.get();
+                        } catch (Exception e) {
+                            error = e.getMessage();
+                        }
+                        if (StringUtils.isNotBlank(error)) {
+                            errors.add(error);
+                        }
+                    }
+
                 } catch(InterruptedException e) {
-                    logger.error("Interrupted while waiting restore operation to finish.");
+                    String message = "Interrupted while waiting restore operation to finish.";
+                    logger.error(message);
+                    errors.add(message);
                 }
-                logger.info("Finished restoring data.");
+                if (errors.isEmpty()) {
+                    logger.info("Finished restoring data.");
+                } else {
+                    logger.error("Finished restoring data with errors: " + errors.size());
+                }
             }
+            return errors;
         }
 
         /**
@@ -3497,8 +3523,9 @@ public class AdminClient {
          * @param storeDef The definition of the store which we want to restore
          * @param executorService An executor to allow us to run the replication
          *        job
+         * @return list of futures that will return any errors that occur during execution
          */
-        private void restoreStoreFromReplication(final int restoringNodeId,
+        private List<Future<String>> restoreStoreFromReplication(final int restoringNodeId,
                                                  final Cluster cluster,
                                                  final StoreDefinition storeDef,
                                                  final ExecutorService executorService,
@@ -3510,14 +3537,16 @@ public class AdminClient {
                                                                                           cluster,
                                                                                           storeDef,
                                                                                           zoneId);
+            List<Future<String>> futures = new ArrayList<Future<String>>();
 
             // migrate partition
             for(final Entry<Integer, List<Integer>> replicationEntry: restoreMapping.entrySet()) {
                 final int donorNodeId = replicationEntry.getKey();
-                executorService.submit(new Runnable() {
+                futures.add(executorService.submit(new Callable<String>() {
 
                     @Override
-                    public void run() {
+                    public String call() {
+                        String error = null;
                         try {
                             logger.info("Restoring data for store " + storeDef.getName()
                                         + " at node " + restoringNodeId + " from node "
@@ -3537,14 +3566,18 @@ public class AdminClient {
                                                      TimeUnit.SECONDS);
 
                             logger.info("Restoring data for store:" + storeDef.getName()
-                                        + " from node " + donorNodeId + " completed.");
-                        } catch(Exception e) {
-                            logger.error("Restore operation for store " + storeDef.getName()
-                                         + "from node " + donorNodeId + " failed.", e);
+                                    + " from node " + donorNodeId + " completed.");
+                        } catch (Exception e) {
+                            error = "Restore operation for store " + storeDef.getName()
+                                    + " from node " + donorNodeId + " failed.";
+                            logger.error(error, e);
                         }
+                        return error;
                     }
-                });
+                }));
             }
+
+            return futures;
         }
 
         /**

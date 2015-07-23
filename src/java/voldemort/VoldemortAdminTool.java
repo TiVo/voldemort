@@ -694,7 +694,14 @@ public class VoldemortAdminTool {
                     System.exit(1);
                 }
                 System.out.println("Starting restore");
-                adminClient.restoreOps.restoreDataFromReplications(nodeId, parallelism, zoneId);
+                List<String> errors = adminClient.restoreOps.restoreDataFromReplications(nodeId, parallelism, zoneId);
+                if (!errors.isEmpty()) {
+                    System.err.format("Finished restore with %s errors\n", errors.size());
+                    for (int i = 0; i < errors.size(); i++) {
+                        System.err.format("%d - %s\n", (i + 1), errors.get(i));
+                    }
+                    System.exit(1);
+                }
                 System.out.println("Finished restore");
             } else if(options.has("delete-store")) {
                 String storeName = (String) options.valueOf("delete-store");
