@@ -6,17 +6,17 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import krati.array.DataArray;
 import krati.core.segment.SegmentFactory;
 import krati.store.DynamicDataStore;
 import krati.util.FnvHashFunction;
 
+import krati.util.IndexedIterator;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
@@ -113,48 +113,12 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
 
     @Override
     public ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> entries() {
-        List<Pair<ByteArray, Versioned<byte[]>>> returnedList = new ArrayList<Pair<ByteArray, Versioned<byte[]>>>();
-        DataArray array = datastore.getDataArray();
-        for(int index = 0; index < array.length(); index++) {
-            byte[] returnedBytes = array.get(index);
-            if(returnedBytes != null) {
-                // Extract the key value pair from this
-                // TODO: Move to DynamicDataStore code
-                ByteBuffer bb = ByteBuffer.wrap(returnedBytes);
-                int cnt = bb.getInt();
-                // Loop over all keys at this index
-                for(int i = 0; i < cnt; i++) {
-                    int keyLen = bb.getInt();
-                    byte[] key = new byte[keyLen];
-                    bb.get(key);
-
-                    int valueLen = bb.getInt();
-                    byte[] value = new byte[valueLen];
-                    bb.get(value);
-
-                    List<Versioned<byte[]>> versions;
-                    try {
-                        versions = disassembleValues(value);
-                    } catch(IOException e) {
-                        versions = null;
-                    }
-
-                    if(versions != null) {
-                        Iterator<Versioned<byte[]>> iterVersions = versions.iterator();
-                        while(iterVersions.hasNext()) {
-                            Versioned<byte[]> currentVersion = iterVersions.next();
-                            returnedList.add(Pair.create(new ByteArray(key), currentVersion));
-                        }
-                    }
-                }
-            }
-        }
-        return new KratiClosableIterator(returnedList);
+        return new KratiClosableIterator(datastore.iterator());
     }
 
     @Override
     public ClosableIterator<ByteArray> keys() {
-        return StoreUtils.keys(entries());
+        return new KratiClosableKeyIterator(datastore.keyIterator());
     }
 
     @Override
@@ -314,7 +278,7 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
      * Splits up value into multiple versioned values
      *
      * @param values
-     * @return
+     * @return list versioned values
      * @throws IOException
      */
     private List<Versioned<byte[]>> disassembleValues(byte[] values) throws IOException {
@@ -340,13 +304,12 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
         return returnList;
     }
 
-    private class KratiClosableIterator implements
-            ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> {
-
-        private Iterator<Pair<ByteArray, Versioned<byte[]>>> iter;
-
-        public KratiClosableIterator(List<Pair<ByteArray, Versioned<byte[]>>> list) {
-            iter = list.iterator();
+    private class KratiClosableKeyIterator implements ClosableIterator<ByteArray> {
+        
+        private IndexedIterator<byte[]> iter;
+        
+        public KratiClosableKeyIterator(IndexedIterator<byte[]> iter) {
+             this.iter = iter;
         }
 
         @Override
@@ -360,8 +323,54 @@ public class KratiStorageEngine extends AbstractStorageEngine<ByteArray, byte[],
         }
 
         @Override
+        public ByteArray next() {
+            return new ByteArray(iter.next());
+        }
+
+        @Override
+        public void remove() {
+            iter.remove();
+        }
+    }
+    
+    private class KratiClosableIterator implements
+            ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> {
+
+        private IndexedIterator<Map.Entry<byte[], byte[]>> iter;
+        private ByteArray key = null;
+        private List<Versioned<byte[]>> values = Collections.emptyList();
+        private int index = 0;
+        
+
+        public KratiClosableIterator(IndexedIterator<Map.Entry<byte[], byte[]>> iter) {
+            this.iter = iter;
+        }
+
+        @Override
+        public void close() {
+            // Nothing to close here
+        }
+
+        @Override
+        public boolean hasNext() {
+            return (index < values.size()) || iter.hasNext();
+        }
+
+        @Override
         public Pair<ByteArray, Versioned<byte[]>> next() {
-            return iter.next();
+            try {
+                if (index >= values.size()) {
+                    Map.Entry<byte[], byte[]> entry = iter.next();
+                    key = new ByteArray(entry.getKey());
+                    values = disassembleValues(entry.getValue());
+                    index = 0;
+                }
+                return Pair.create(key, values.get(index++));
+            } catch (IOException e) {
+                String message = "Entries iteration failed";
+                logger.error(message, e);
+                throw new VoldemortException(message, e);
+            }
         }
 
         @Override
