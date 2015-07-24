@@ -1,6 +1,7 @@
 package voldemort.serialization.protobuf;
 
 import junit.framework.TestCase;
+import org.junit.Test;
 import voldemort.serialization.DefaultSerializerFactory;
 import voldemort.serialization.Serializer;
 import voldemort.serialization.SerializerDefinition;
@@ -28,6 +29,11 @@ public class ProtoBufSerializerTest extends TestCase {
         }
 
         public com.google.protobuf.Message.Builder newBuilderForType() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public com.google.protobuf.Message.Builder newBuilderForType(BuilderParent parent) {
             throw new UnsupportedOperationException();
         }
 

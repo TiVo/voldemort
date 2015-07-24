@@ -480,7 +480,7 @@ dependencies {
     // compile 'com.thoughtworks.paranamer:paranamer:2.1'
 
     // protobuf is a supported protocol format between voldemort client and server
-    compile 'com.google.protobuf:protobuf-java:2.3.0'
+    compile 'com.google.protobuf:protobuf-java:2.5.0'
 
     // Command line shell is also supported in scala
     compile 'org.scala-lang:scala-compiler:2.10.4'
