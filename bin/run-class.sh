@@ -49,4 +49,11 @@ if [ -z ${LOG4JPROPERTIES} ]; then
 fi
 
 export CLASSPATH
-java $LOG4JPROPERTIES $VOLD_OPTS -cp $CLASSPATH $@
+
+if [ -z "$JAVA_HOME" ]; then
+  JAVA="java"
+else
+  JAVA="$JAVA_HOME/bin/java"
+fi
+
+$JAVA $LOG4JPROPERTIES $VOLD_OPTS -cp $CLASSPATH $@
