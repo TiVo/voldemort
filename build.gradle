@@ -226,7 +226,7 @@ task tar (type: Tar) {
     compression = Compression.GZIP
     baseName = projectName
     extension = "tar.gz"
-    classifier = 'tar.gz'
+    classifier = 'bin'
 
     from(distDir) {
         include archiveDirectoryName + '/bin/**'
