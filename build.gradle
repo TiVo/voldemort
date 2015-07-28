@@ -5,6 +5,7 @@ apply plugin: 'scala'
 apply plugin: 'idea'
 apply plugin: 'eclipse'
 apply plugin: 'war'
+apply plugin: 'maven'
 
 def String getProjectProperty(String propertyName) {
     String propertyValue = "null"
@@ -40,8 +41,14 @@ def voldVersion = getProjectProperty('curr.release')
 def javacVersion = getProjectProperty('javac.version')
 def scalaVersion = getProjectProperty('scalac.version')
 
+def mavenUrl = getProjectProperty('mavenUrl')
+def mavenSnapshotUrl = getProjectProperty('mavenSnapshotUrl')
+def mavenUsername = getProjectProperty('mavenUsername')
+def mavenPassword = getProjectProperty('mavenPassword')
+
 //This is the javaCompile variable version. Directly defining 'def version' will override this and cause nightmare
 version = voldVersion
+group = "voldemort"
 
 def archiveDirectoryName = projectName + '-' + version
 def archiveDirectoryPath = distDir + "/" + archiveDirectoryName
@@ -68,6 +75,21 @@ repositories {
     flatDir { dirs contribRootDir }
 }
 
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: mavenUrl) {
+                authentication(userName: mavenUsername, password: mavenPassword)
+            }
+            snapshotRepository(url: mavenSnapshotUrl) {
+                authentication(userName: mavenUsername, password: mavenPassword)
+            }
+            addFilter('voldemort') {artifact, file ->
+                artifact.name == 'voldemort'
+            }
+        }
+    }
+}
 
 sourceSets {
     main {
@@ -157,6 +179,7 @@ task contribJar(type:Jar) {
 }
 
 task srcJar(type: Jar, dependsOn: classes) {
+    baseName = projectName
     classifier = 'src'
     from sourceSets.main.java.srcDirs
     destinationDir = project.file(distDir)
@@ -214,6 +237,10 @@ task tar (type: Tar) {
     }
 
     destinationDir = project.file(distDir)
+}
+
+artifacts {
+    archives tar
 }
 
 /*
