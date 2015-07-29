@@ -154,7 +154,8 @@ compileContribJava.doLast {
 }
 
 task testJar(type: Jar) {
-    baseName = projectName + "-test"
+    baseName = projectName
+    classifier = 'test'
     from sourceSets.test.output
     destinationDir = project.file(distDir)
 }
