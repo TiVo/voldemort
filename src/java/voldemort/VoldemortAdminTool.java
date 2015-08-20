@@ -107,7 +107,6 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.sleepycat.persist.StoreNotFoundException;
 
 /**
  * Provides a command line interface to the
@@ -2068,7 +2067,7 @@ public class VoldemortAdminTool {
             // store definition
             StoreDefinition storeDefinition = storeDefinitions.get(storeName);
             if(storeDefinition == null) {
-                throw new StoreNotFoundException("Store " + storeName + " not found");
+                throw new RuntimeException("Store " + storeName + " not found");
             }
 
             out.write("STORE_NAME: " + storeDefinition.getName() + "\n");

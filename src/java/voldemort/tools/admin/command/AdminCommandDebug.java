@@ -70,7 +70,6 @@ import voldemort.versioning.VectorClock;
 import voldemort.versioning.Versioned;
 
 import com.google.common.base.Objects;
-import com.sleepycat.persist.StoreNotFoundException;
 
 /**
  * Implements all debug commands.
@@ -255,7 +254,7 @@ public class AdminCommandDebug extends AbstractAdminCommand {
                 // store definition
                 StoreDefinition storeDefinition = storeDefinitions.get(storeName);
                 if(storeDefinition == null) {
-                    throw new StoreNotFoundException("Store " + storeName + " not found");
+                    throw new RuntimeException("Store " + storeName + " not found");
                 }
 
                 out.write("STORE_NAME: " + storeDefinition.getName() + "\n");
