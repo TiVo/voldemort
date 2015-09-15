@@ -17,7 +17,6 @@ def String getProjectProperty(String propertyName) {
     }
     return propertyValue
 }
-def projectName = "voldemort"
 
 def sourceDir = getProjectProperty('src.dir')
 def distDir = getProjectProperty('dist.dir')
@@ -41,6 +40,7 @@ def voldVersion = getProjectProperty('curr.release')
 def javacVersion = getProjectProperty('javac.version')
 def scalaVersion = getProjectProperty('scalac.version')
 
+def mavenRepo = getProjectProperty('mavenRepo')
 def mavenUrl = getProjectProperty('mavenUrl')
 def mavenSnapshotUrl = getProjectProperty('mavenSnapshotUrl')
 def mavenUsername = getProjectProperty('mavenUsername')
@@ -50,7 +50,7 @@ def mavenPassword = getProjectProperty('mavenPassword')
 version = voldVersion
 group = "voldemort"
 
-def archiveDirectoryName = projectName + '-' + version
+def archiveDirectoryName = name + '-' + version
 def archiveDirectoryPath = distDir + "/" + archiveDirectoryName
 
 def deleteDirectoryContents(directory) {
@@ -70,7 +70,10 @@ compileJava.options.debug = true
 // tasks.withType(ScalaCompile) { scalaCompileOptions.useAnt = false }
 
 repositories {
-    mavenCentral()
+    mavenLocal()
+    maven {
+        url mavenRepo
+    }
     flatDir { dirs privateLibDir }
     flatDir { dirs contribRootDir }
 }
@@ -83,9 +86,6 @@ uploadArchives {
             }
             snapshotRepository(url: mavenSnapshotUrl) {
                 authentication(userName: mavenUsername, password: mavenPassword)
-            }
-            addFilter('voldemort') {artifact, file ->
-                artifact.name == 'voldemort'
             }
         }
     }
@@ -154,14 +154,12 @@ compileContribJava.doLast {
 }
 
 task testJar(type: Jar) {
-    baseName = projectName
     classifier = 'test'
     from sourceSets.test.output
     destinationDir = project.file(distDir)
 }
 
 task voldJar(type:Jar) {
-    baseName = projectName
     manifest {
         attributes 'Voldemort-Implementation-Version' : version,
         'Implementation-Title': 'Voldemort',
@@ -174,13 +172,12 @@ task voldJar(type:Jar) {
 
 task contribJar(type:Jar) {
     dependsOn voldJar, testJar, sourceSets.contrib.output
-    baseName = projectName + "-contrib"
+    classifier = "contrib"
     from sourceSets.contrib.output
     destinationDir = project.file(distDir)
 }
 
 task srcJar(type: Jar, dependsOn: classes) {
-    baseName = projectName
     classifier = 'src'
     from sourceSets.main.java.srcDirs
     destinationDir = project.file(distDir)
@@ -208,7 +205,6 @@ task copySources (type: Copy) {
 
 task zip (type: Zip) {
     dependsOn copySources
-    baseName = projectName
 
     from(distDir) {
         include archiveDirectoryName + '/bin/**'
@@ -225,7 +221,6 @@ task zip (type: Zip) {
 task tar (type: Tar) {
     dependsOn copySources
     compression = Compression.GZIP
-    baseName = projectName
     extension = "tar.gz"
     classifier = 'bin'
 
@@ -265,6 +260,7 @@ war {
     from sourceSets.main.output
     webXml = project.file('web.xml')
     destinationDir = project.file(distDir)
+    classifier = 'war'
 }
 
 assemble.dependsOn copyDeps
