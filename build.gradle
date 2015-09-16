@@ -178,7 +178,7 @@ task contribJar(type:Jar) {
 }
 
 task srcJar(type: Jar, dependsOn: classes) {
-    classifier = 'src'
+    classifier = 'sources'
     from sourceSets.main.java.srcDirs
     destinationDir = project.file(distDir)
 }
