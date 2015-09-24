@@ -132,6 +132,8 @@ public class Benchmark {
     private boolean ignoreNulls = false;
     private String keyType;
 
+    private boolean localMode = false;
+
     class StatusThread extends Thread {
 
         private Vector<Thread> threads;
@@ -365,6 +367,7 @@ public class Benchmark {
         } else {
 
             // Local benchmark
+            localMode = true;
             String storageEngineClass = benchmarkProps.getString(STORAGE_CONFIGURATION_CLASS);
             this.keyType = benchmarkProps.getString(KEY_TYPE, STRING_KEY_TYPE);
             Serializer serializer = findKeyType(this.keyType);
@@ -439,7 +442,8 @@ public class Benchmark {
         for(int index = 0; index < this.numThreads; index++) {
             VoldemortWrapper db = new VoldemortWrapper(storeClient,
                                                        this.verifyRead && this.warmUpCompleted,
-                                                       this.ignoreNulls);
+                                                       this.ignoreNulls,
+                                                       this.localMode);
             WorkloadPlugin plugin = null;
             if(this.pluginName != null && this.pluginName.length() > 0) {
                 Class<?> cls = Class.forName(this.pluginName);
@@ -455,10 +459,16 @@ public class Benchmark {
                 plugin.setDb(db);
             }
 
+            int opsPerThread = localOpsCounts / this.numThreads;
+            // Make the last thread handle the remainder.
+            if (index == this.numThreads - 1) {
+                opsPerThread += localOpsCounts % this.numThreads;
+            }
+
             threads.add(new ClientThread(db,
                                          runBenchmark,
                                          this.workLoad,
-                                         localOpsCounts / this.numThreads,
+                                         opsPerThread,
                                          this.perThreadThroughputPerMs,
                                          this.verbose,
                                          plugin));
