@@ -25,7 +25,7 @@ fi
 
 # Ensure the Voldemort config files exist.
 if [ ! -d ${HOME_DIR}/config/STORES ] || [ ! -f ${HOME_DIR}/config/server.properties ]; then
-    echo "Could not finde Voldemort config files. Can not migrate."
+    echo "Could not find the Voldemort config files. Can not migrate."
     exit 1
 fi
 

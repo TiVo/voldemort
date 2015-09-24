@@ -38,6 +38,7 @@ public class MigrateKratiToRocksDB {
 
         String voldemortHome = args[0];
         VoldemortConfig config = VoldemortConfig.loadFromVoldemortHome(voldemortHome);
+        config.setEnableSlop(false);
         MetadataStore metadata = MetadataStore.readFromDirectory(new File(config.getMetadataDirectory()), config.getNodeId());
 
         StoreRepository storeRepository = new StoreRepository();
