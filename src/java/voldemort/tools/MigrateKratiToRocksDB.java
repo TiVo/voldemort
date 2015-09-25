@@ -29,6 +29,7 @@ import voldemort.versioning.Versioned;
 public class MigrateKratiToRocksDB {
 
     private static Logger logger = Logger.getLogger(MigrateKratiToRocksDB.class);
+    private static final long LOG_INTERVAL_MS = 5 * 60 * 1000;
 
     public static void main(String[] args) throws Exception {
         if (args.length != 1) {
@@ -72,11 +73,16 @@ public class MigrateKratiToRocksDB {
 
                 logger.info("Starting migration of: " + kratiStore.getName());
                 long numEntries = 0;
+                long lastLogTime = System.currentTimeMillis();
                 ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> kratiEntries = kratiStore.entries();
                 while (kratiEntries.hasNext()) {
                     Pair<ByteArray, Versioned<byte[]>> kratiEntry = kratiEntries.next();
                     rocksdbStore.put(kratiEntry.getFirst(), kratiEntry.getSecond(), null);
                     numEntries++;
+                    if (System.currentTimeMillis() - lastLogTime > LOG_INTERVAL_MS) {
+                        logger.info("Continuing migration of: " + kratiStore.getName() + "; Number of entries migrated: " + numEntries);
+                        lastLogTime = System.currentTimeMillis();
+                    }
                 }
                 kratiEntries.close();
                 rocksdbStore.close();
