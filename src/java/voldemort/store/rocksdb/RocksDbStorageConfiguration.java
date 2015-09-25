@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
+import org.rocksdb.CompressionType;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.util.SizeUnit;
@@ -17,6 +18,7 @@ import voldemort.store.StorageInitializationException;
 import voldemort.store.StoreBinaryFormat;
 import voldemort.store.StoreDefinition;
 import voldemort.utils.ByteArray;
+import voldemort.utils.Props;
 
 public class RocksDbStorageConfiguration implements StorageConfiguration {
 
@@ -34,13 +36,26 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
 
     private Map<String, RocksDbStorageEngine> stores = new HashMap<String, RocksDbStorageEngine>();
 
+    private final long writeBufferSize;
+    private final int maxWriteBufferNumber;
+    private final int maxBackgroundCompactions;
+    private final CompressionType compressionType;
+
     public RocksDbStorageConfiguration(VoldemortConfig config) {
         /**
          * - TODO 1. number of default locks need to debated. This default is
          * same as that of Krati's. 2. Later add the property to VoldemortConfig
          */
         this.voldemortconfig = config;
-        this.lockStripes = config.getAllProps().getInt("rocksdb.lock.stripes", 50);
+        Props props = config.getAllProps();
+
+        this.lockStripes = props.getInt("rocksdb.lock.stripes", 50);
+
+        // TODO: Validate the default mandatory options
+        writeBufferSize = props.getLong("rocksdb.writeBufferSize", (8 * SizeUnit.KB));
+        maxWriteBufferNumber = props.getInt("rocksdb.maxWriteBufferNumber", 3);
+        maxBackgroundCompactions = props.getInt("rocksdb.maxBackgroundCompactions", 10);
+        compressionType = CompressionType.valueOf(props.getString("rocksdb.compressionType", CompressionType.SNAPPY_COMPRESSION.toString()));
     }
 
     @Override
@@ -53,15 +68,13 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
 
             new File(dataDir).mkdirs();
 
-            // TODO: Validate those default mandatory options and make them
-            // configurable
             try {
                 Options rdbOptions = new Options().setCreateIfMissing(true)
                                                   .createStatistics()
-                                                  .setWriteBufferSize(8 * SizeUnit.KB)
-                                                  .setMaxWriteBufferNumber(3)
-                                                  .setMaxBackgroundCompactions(10)
-                                                  .setCompressionType(org.rocksdb.CompressionType.SNAPPY_COMPRESSION);
+                                                  .setWriteBufferSize(writeBufferSize)
+                                                  .setMaxWriteBufferNumber(maxWriteBufferNumber)
+                                                  .setMaxBackgroundCompactions(maxBackgroundCompactions)
+                                                  .setCompressionType(compressionType);
 
                 RocksDB rdbStore = null;
                 RocksDbStorageEngine rdbStorageEngine;
