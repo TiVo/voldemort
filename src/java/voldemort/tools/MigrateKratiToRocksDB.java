@@ -71,16 +71,16 @@ public class MigrateKratiToRocksDB {
                 StorageEngine<ByteArray, byte[], byte[]> rocksdbStore = rocksdbConfig.getStore(rocksdbDefinition, null);
 
                 logger.info("Starting migration of: " + kratiStore.getName());
-                long numKeys = 0;
+                long numEntries = 0;
                 ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> kratiEntries = kratiStore.entries();
                 while (kratiEntries.hasNext()) {
                     Pair<ByteArray, Versioned<byte[]>> kratiEntry = kratiEntries.next();
                     rocksdbStore.put(kratiEntry.getFirst(), kratiEntry.getSecond(), null);
-                    numKeys++;
+                    numEntries++;
                 }
                 kratiEntries.close();
                 rocksdbStore.close();
-                logger.info("Completed migration of: " + kratiStore.getName() + "; Number of keys migrated: " + numKeys);
+                logger.info("Completed migration of: " + kratiStore.getName() + "; Number of entries migrated: " + numEntries);
             }
         }
 
