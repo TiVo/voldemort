@@ -52,10 +52,10 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
         this.lockStripes = props.getInt("rocksdb.lock.stripes", 50);
 
         // TODO: Validate the default mandatory options
-        writeBufferSize = props.getLong("rocksdb.writeBufferSize", (8 * SizeUnit.KB));
-        maxWriteBufferNumber = props.getInt("rocksdb.maxWriteBufferNumber", 3);
-        maxBackgroundCompactions = props.getInt("rocksdb.maxBackgroundCompactions", 10);
-        compressionType = CompressionType.valueOf(props.getString("rocksdb.compressionType", CompressionType.SNAPPY_COMPRESSION.toString()));
+        writeBufferSize = props.getLong("rocksdb.options.writeBufferSize", (8 * SizeUnit.KB));
+        maxWriteBufferNumber = props.getInt("rocksdb.options.maxWriteBufferNumber", 3);
+        maxBackgroundCompactions = props.getInt("rocksdb.options.maxBackgroundCompactions", 10);
+        compressionType = CompressionType.valueOf(props.getString("rocksdb.options.compressionType", CompressionType.SNAPPY_COMPRESSION.toString()));
     }
 
     @Override

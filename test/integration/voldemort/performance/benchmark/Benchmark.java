@@ -17,17 +17,16 @@
 package voldemort.performance.benchmark;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.text.NumberFormat;
 import java.util.List;
-import java.util.Properties;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import org.apache.commons.io.FileUtils;
 import voldemort.ServerTestUtils;
 import voldemort.StaticStoreClientFactory;
 import voldemort.TestUtils;
@@ -120,7 +119,7 @@ public class Benchmark {
     public static final String HAS_TRANSFORMS = "true";
     public static final String SAMPLE_SIZE = "sample-size";
 
-    public static final String LOCAL_PROPERTIES = "local-properties";
+    public static final String LOCAL_SERVER_PROPERTIES = "local-server-properties";
 
     private StoreClient<Object, Object> storeClient;
     private StoreClientFactory factory;
@@ -378,15 +377,15 @@ public class Benchmark {
             Serializer serializer = findKeyType(this.keyType);
             Store<Object, Object, Object> store = null;
 
-            VoldemortConfig voldemortConfig = ServerTestUtils.getVoldemortConfig();
-
-            if (benchmarkProps.containsKey(LOCAL_PROPERTIES)) {
-                File file = new File(benchmarkProps.get(LOCAL_PROPERTIES));
-                FileInputStream is = new FileInputStream(file);
-                Properties properties = new Properties();
-                properties.load(is);
-                is.close();
-                voldemortConfig.getAllProps().loadProperties(properties);
+            VoldemortConfig voldemortConfig;
+            if (benchmarkProps.containsKey(LOCAL_SERVER_PROPERTIES)) {
+                File homeDir = TestUtils.createTempDir();
+                File configDir = new File(homeDir, "config");
+                configDir.mkdir();
+                FileUtils.copyFile(new File(benchmarkProps.get(LOCAL_SERVER_PROPERTIES)), new File(configDir, "server.properties"));
+                voldemortConfig = VoldemortConfig.loadFromVoldemortHome(homeDir.getAbsolutePath());
+            } else {
+                voldemortConfig = ServerTestUtils.getVoldemortConfig();
             }
 
             StorageConfiguration conf = (StorageConfiguration) ReflectUtils.callConstructor(ReflectUtils.loadClass(storageEngineClass),
@@ -639,9 +638,9 @@ public class Benchmark {
               .withRequiredArg()
               .describedAs("zone-id")
               .ofType(Integer.class);
-        parser.accepts(LOCAL_PROPERTIES, "path to properties file to add to server config (local mode only)")
+        parser.accepts(LOCAL_SERVER_PROPERTIES, "path to a server properties file (local mode only)")
               .withRequiredArg()
-              .describedAs(LOCAL_PROPERTIES)
+              .describedAs(LOCAL_SERVER_PROPERTIES)
               .ofType(String.class);
         parser.accepts(HELP);
 
@@ -702,8 +701,8 @@ public class Benchmark {
                                                BdbStorageConfiguration.class.getName()));
             }
 
-            if(options.has(LOCAL_PROPERTIES)) {
-                mainProps.put(LOCAL_PROPERTIES, (String) options.valueOf(LOCAL_PROPERTIES));
+            if(options.has(LOCAL_SERVER_PROPERTIES)) {
+                mainProps.put(LOCAL_SERVER_PROPERTIES, (String) options.valueOf(LOCAL_SERVER_PROPERTIES));
             }
 
             mainProps.put(VERBOSE, getCmdBoolean(options, VERBOSE));
