@@ -60,16 +60,16 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
         this.lockStripes = props.getInt("rocksdb.lock.stripes", 50);
 
         // TODO: Validate the default mandatory options
-        compactionStyle = CompactionStyle.valueOf(props.getString("rocksdb.options.compactionStyle", CompactionStyle.LEVEL.toString()));
+        compactionStyle = CompactionStyle.valueOf(props.getString("rocksdb.options.compactionStyle", CompactionStyle.UNIVERSAL.toString()));
         compressionType = CompressionType.valueOf(props.getString("rocksdb.options.compressionType", CompressionType.SNAPPY_COMPRESSION.toString()));
         maxBackgroundCompactions = props.getInt("rocksdb.options.maxBackgroundCompactions", 10);
         maxBackgroundFlushes = props.getInt("rocksdb.options.maxBackgroundFlushes", 1);
-        maxBytesForLevelBase = props.getLong("rocksdb.options.maxBytesForLevelBase", 10485760);
+        maxBytesForLevelBase = props.getLong("rocksdb.options.maxBytesForLevelBase", (10 * SizeUnit.MB));
         maxWriteBufferNumber = props.getInt("rocksdb.options.maxWriteBufferNumber", 3);
         statsDumpPeriodSec = props.getInt("rocksdb.options.statsDumpPeriodSec", 3600);
-        targetFileSizeBase =  props.getLong("rocksdb.options.targetFileSizeBase", 2097152);
+        targetFileSizeBase =  props.getLong("rocksdb.options.targetFileSizeBase", (2 * SizeUnit.MB));
         targetFileSizeMultiplier =  props.getInt("rocksdb.options.targetFileSizeMultiplier", 1);
-        writeBufferSize = props.getLong("rocksdb.options.writeBufferSize", (8 * SizeUnit.KB));
+        writeBufferSize = props.getLong("rocksdb.options.writeBufferSize", (4 * SizeUnit.MB));
     }
 
     @Override
