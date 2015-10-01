@@ -85,23 +85,23 @@ public class Measurement {
     }
 
     public synchronized void recordReturnCode(int code) {
-        Integer Icode = code;
-        if(!returnCodes.containsKey(Icode)) {
+        Integer key = code;
+        if(!returnCodes.containsKey(key)) {
             int[] val = new int[1];
             val[0] = 0;
-            returnCodes.put(Icode, val);
+            returnCodes.put(key, val);
         }
-        returnCodes.get(Icode)[0]++;
+        returnCodes.get(key)[0]++;
     }
 
     public synchronized void recordWarningCode(int code) {
-        Integer Icode = code;
-        if(!warningCodes.containsKey(Icode)) {
+        Integer key = code;
+        if(!warningCodes.containsKey(key)) {
             int[] val = new int[1];
             val[0] = 0;
-            warningCodes.put(Icode, val);
+            warningCodes.put(key, val);
         }
-        warningCodes.get(Icode)[0]++;
+        warningCodes.get(key)[0]++;
     }
 
     public synchronized void recordLatency(int latency) {
