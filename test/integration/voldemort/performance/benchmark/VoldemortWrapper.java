@@ -31,7 +31,7 @@ public class VoldemortWrapper {
     }
 
     public enum WarningCode {
-        NO_CURRENT_VALE
+        NO_CURRENT_VALUE
     }
 
     private StoreClient<Object, Object> voldemortStore;
@@ -109,7 +109,7 @@ public class VoldemortWrapper {
                 measurement.recordLatency(Operations.Mixed.getOpString(),
                                           (int) ((endNs - startNs) / Time.NS_PER_MS));
                 if (noCurrentValue) {
-                    measurement.recordWarningCode(Operations.Mixed.getOpString(), WarningCode.NO_CURRENT_VALE.ordinal());
+                    measurement.recordWarningCode(Operations.Mixed.getOpString(), WarningCode.NO_CURRENT_VALUE.ordinal());
                 }
             }
         });
