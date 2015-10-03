@@ -163,14 +163,14 @@ public class Measurement {
         out.println("[" + getName() + "]\t95th(ms): " + nf.format(result.q95Latency));
         out.println("[" + getName() + "]\t99th(ms): " + nf.format(result.q99Latency));
 
-        for(Integer I: returnCodes.keySet()) {
-            int[] val = returnCodes.get(I);
-            out.println("[" + getName() + "]\tReturn: " + VoldemortWrapper.ReturnCode.values()[I] + "\t" + val[0]);
+        for(Integer i: returnCodes.keySet()) {
+            int[] val = returnCodes.get(i);
+            out.println("[" + getName() + "]\tReturn: " + VoldemortWrapper.ReturnCode.values()[i] + "\t" + val[0]);
         }
 
-        for(Integer I: warningCodes.keySet()) {
-            int[] val = returnCodes.get(I);
-            out.println("[" + getName() + "]\tWarning: " + VoldemortWrapper.WarningCode.values()[I] + "\t" + val[0]);
+        for(Integer i: warningCodes.keySet()) {
+            int[] val = returnCodes.get(i);
+            out.println("[" + getName() + "]\tWarning: " + VoldemortWrapper.WarningCode.values()[i] + "\t" + val[0]);
         }
 
         if(!this.summaryOnly) {

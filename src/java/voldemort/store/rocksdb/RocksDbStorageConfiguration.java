@@ -37,39 +37,13 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
 
     private Map<String, RocksDbStorageEngine> stores = new HashMap<String, RocksDbStorageEngine>();
 
-    // RocksDB Configuration Options
-    private final CompactionStyle compactionStyle;
-    private final CompressionType compressionType;
-    private final int maxBackgroundCompactions;
-    private final int maxBackgroundFlushes;
-    private final long maxBytesForLevelBase;
-    private final int maxWriteBufferNumber;
-    private final int statsDumpPeriodSec;
-    private final long targetFileSizeBase;
-    private final int targetFileSizeMultiplier;
-    private final long writeBufferSize;
-
     public RocksDbStorageConfiguration(VoldemortConfig config) {
         /**
          * - TODO 1. number of default locks need to debated. This default is
          * same as that of Krati's. 2. Later add the property to VoldemortConfig
          */
         this.voldemortconfig = config;
-        Props props = config.getAllProps();
-
-        this.lockStripes = props.getInt("rocksdb.lock.stripes", 50);
-
-        // TODO: Validate the default mandatory options
-        compactionStyle = CompactionStyle.valueOf(props.getString("rocksdb.options.compactionStyle", CompactionStyle.UNIVERSAL.toString()));
-        compressionType = CompressionType.valueOf(props.getString("rocksdb.options.compressionType", CompressionType.SNAPPY_COMPRESSION.toString()));
-        maxBackgroundCompactions = props.getInt("rocksdb.options.maxBackgroundCompactions", 10);
-        maxBackgroundFlushes = props.getInt("rocksdb.options.maxBackgroundFlushes", 1);
-        maxBytesForLevelBase = props.getLong("rocksdb.options.maxBytesForLevelBase", (10 * SizeUnit.MB));
-        maxWriteBufferNumber = props.getInt("rocksdb.options.maxWriteBufferNumber", 3);
-        statsDumpPeriodSec = props.getInt("rocksdb.options.statsDumpPeriodSec", 3600);
-        targetFileSizeBase =  props.getLong("rocksdb.options.targetFileSizeBase", (2 * SizeUnit.MB));
-        targetFileSizeMultiplier =  props.getInt("rocksdb.options.targetFileSizeMultiplier", 1);
-        writeBufferSize = props.getLong("rocksdb.options.writeBufferSize", (4 * SizeUnit.MB));
+        this.lockStripes = config.getAllProps().getInt("rocksdb.lock.stripes", 50);
     }
 
     @Override
@@ -86,16 +60,19 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
                 Options rdbOptions = new Options()
                         .setCreateIfMissing(true)
                         .createStatistics()
-                        .setCompactionStyle(compactionStyle)
-                        .setCompressionType(compressionType)
-                        .setMaxBackgroundCompactions(maxBackgroundCompactions)
-                        .setMaxBackgroundFlushes(maxBackgroundFlushes)
-                        .setMaxBytesForLevelBase(maxBytesForLevelBase)
-                        .setMaxWriteBufferNumber(maxWriteBufferNumber)
-                        .setStatsDumpPeriodSec(statsDumpPeriodSec)
-                        .setTargetFileSizeBase(targetFileSizeBase)
-                        .setTargetFileSizeMultiplier(targetFileSizeMultiplier)
-                        .setWriteBufferSize(writeBufferSize);
+                        .setCompactionStyle(voldemortconfig.getRocksdbCompactionStyle())
+                        .setCompressionType(voldemortconfig.getRocksdbCompressionType())
+                        .setLevelZeroFileNumCompactionTrigger(voldemortconfig.getRocksdbLevelZeroFileNumCompactionTrigger())
+                        .setLevelZeroSlowdownWritesTrigger(voldemortconfig.getRocksdbLevelZeroSlowdownWritesTrigger())
+                        .setLevelZeroStopWritesTrigger(voldemortconfig.getRocksdbLevelZeroStopWritesTrigger())
+                        .setMaxBackgroundCompactions(voldemortconfig.getRocksdbMaxBackgroundCompactions())
+                        .setMaxBackgroundFlushes(voldemortconfig.getRocksdbMaxBackgroundFlushes())
+                        .setMaxBytesForLevelBase(voldemortconfig.getRocksdbMaxBytesForLevelBase())
+                        .setMaxWriteBufferNumber(voldemortconfig.getRocksdbMaxWriteBufferNumber())
+                        .setStatsDumpPeriodSec(voldemortconfig.getRocksdbStatsDumpPeriodSec())
+                        .setTargetFileSizeBase(voldemortconfig.getRocksdbTargetFileSizeBase())
+                        .setTargetFileSizeMultiplier(voldemortconfig.getRocksdbTargetFileSizeMultiplier())
+                        .setWriteBufferSize(voldemortconfig.getRocksdbWriteBufferSize());
 
                 logDbOptions(rdbOptions);
 
@@ -129,6 +106,9 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
         Options defaults = new Options();
         logger.info("RocksBD Option: compactionStyle = " + rdbOptions.compactionStyle() + " (default = " + defaults.compactionStyle() + ")");
         logger.info("RocksBD Option: compressionType = " + rdbOptions.compressionType() + " (default = " + defaults.compressionType() + ")");
+        logger.info("RocksBD Option: levelZeroFileNumCompactionTrigger = " + rdbOptions.levelZeroFileNumCompactionTrigger() + " (default = " + defaults.levelZeroFileNumCompactionTrigger() + ")");
+        logger.info("RocksBD Option: levelZeroSlowdownWritesTrigger = " + rdbOptions.levelZeroSlowdownWritesTrigger() + " (default = " + defaults.levelZeroSlowdownWritesTrigger() + ")");
+        logger.info("RocksBD Option: levelZeroStopWritesTrigger = " + rdbOptions.levelZeroStopWritesTrigger() + " (default = " + defaults.levelZeroStopWritesTrigger() + ")");
         logger.info("RocksBD Option: maxBackgroundCompactions = " + rdbOptions.maxBackgroundCompactions() + " (default = " + defaults.maxBackgroundCompactions() + ")");
         logger.info("RocksBD Option: maxBackgroundFlushes = " + rdbOptions.maxBackgroundFlushes() + " (default = " + defaults.maxBackgroundFlushes() + ")");
         logger.info("RocksBD Option: maxBytesForLevelBase = " + rdbOptions.maxBytesForLevelBase() + " (default = " + defaults.maxBytesForLevelBase() + ")");

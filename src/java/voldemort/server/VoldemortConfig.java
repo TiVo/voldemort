@@ -24,6 +24,9 @@ import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.rocksdb.CompactionStyle;
+import org.rocksdb.CompressionType;
+import org.rocksdb.util.SizeUnit;
 import voldemort.client.ClientConfig;
 import voldemort.client.DefaultStoreClient;
 import voldemort.client.TimeoutConfig;
@@ -141,6 +144,20 @@ public class VoldemortConfig implements Serializable {
     private String rocksdbDataDirectory;
     private boolean rocksdbPrefixKeysWithPartitionId;
     private boolean rocksdbEnableReadLocks;
+    // RocksDB Configuration Options
+    private CompactionStyle rocksdbCompactionStyle;
+    private CompressionType rocksdbCompressionType;
+    private int rocksdbLevelZeroFileNumCompactionTrigger;
+    private int rocksdbLevelZeroSlowdownWritesTrigger;
+    private int rocksdbLevelZeroStopWritesTrigger;
+    private int rocksdbMaxBackgroundCompactions;
+    private int rocksdbMaxBackgroundFlushes;
+    private long rocksdbMaxBytesForLevelBase;
+    private int rocksdbMaxWriteBufferNumber;
+    private int rocksdbStatsDumpPeriodSec;
+    private long rocksdbTargetFileSizeBase;
+    private int rocksdbTargetFileSizeMultiplier;
+    private long rocksdbWriteBufferSize;
 
     private int numReadOnlyVersions;
     private String readOnlyStorageDir;
@@ -595,6 +612,22 @@ public class VoldemortConfig implements Serializable {
         this.rocksdbPrefixKeysWithPartitionId = props.getBoolean("rocksdb.prefix.keys.with.partitionid",
                                                                  true);
         this.rocksdbEnableReadLocks = props.getBoolean("rocksdb.enable.read.locks", false);
+
+        setRocksdbCompactionStyle(CompactionStyle.valueOf(props.getString("rocksdb.options.compactionStyle",
+                CompactionStyle.UNIVERSAL.toString())));
+        setRocksdbCompressionType(CompressionType.valueOf(props.getString("rocksdb.options.compressionType",
+                CompressionType.SNAPPY_COMPRESSION.toString())));
+        setRocksdbLevelZeroFileNumCompactionTrigger(props.getInt("rocksdb.options.levelZeroFileNumCompactionTrigger", 4));
+        setRocksdbLevelZeroSlowdownWritesTrigger(props.getInt("rocksdb.options.levelZeroSlowdownWritesTrigger", 20));
+        setRocksdbLevelZeroStopWritesTrigger(props.getInt("rocksdb.options.levelZeroStopWritesTrigger", 24));
+        setRocksdbMaxBackgroundCompactions(props.getInt("rocksdb.options.maxBackgroundCompactions", 10));
+        setRocksdbMaxBackgroundFlushes(props.getInt("rocksdb.options.maxBackgroundFlushes", 1));
+        setRocksdbMaxBytesForLevelBase(props.getLong("rocksdb.options.maxBytesForLevelBase", (10 * SizeUnit.MB)));
+        setRocksdbMaxWriteBufferNumber(props.getInt("rocksdb.options.maxWriteBufferNumber", 3));
+        setRocksdbStatsDumpPeriodSec(props.getInt("rocksdb.options.statsDumpPeriodSec", 3600));
+        setRocksdbTargetFileSizeBase(props.getLong("rocksdb.options.targetFileSizeBase", (2 * SizeUnit.MB)));
+        setRocksdbTargetFileSizeMultiplier(props.getInt("rocksdb.options.targetFileSizeMultiplier", 1));
+        setRocksdbWriteBufferSize(props.getLong("rocksdb.options.writeBufferSize", (4 * SizeUnit.MB)));
 
         validateParams();
     }
@@ -3359,4 +3392,203 @@ public class VoldemortConfig implements Serializable {
         this.rocksdbEnableReadLocks = rocksdbEnableReadLocks;
     }
 
+    public CompactionStyle getRocksdbCompactionStyle() {
+        return rocksdbCompactionStyle;
+    }
+
+    /**
+     * Set the compaction style to use.  Determines how the database files are organized and combined.
+     * Possible values include:
+     * <ul>
+     * <li>{@link org.rocksdb.CompactionStyle#LEVEL}</li>
+     * <li>{@link org.rocksdb.CompactionStyle#UNIVERSAL}</li>
+     * <li>{@link org.rocksdb.CompactionStyle#FIFO}</li>
+     * </ul>
+     * For details see {@link org.rocksdb.CompactionStyle}
+     *
+     * @param rocksdbCompactionStyle
+     */
+    public void setRocksdbCompactionStyle(CompactionStyle rocksdbCompactionStyle) {
+        this.rocksdbCompactionStyle = rocksdbCompactionStyle;
+    }
+
+    public CompressionType getRocksdbCompressionType() {
+        return rocksdbCompressionType;
+    }
+
+    /**
+     * Set the compression algorithm to use when storing data. Possible values include:
+     * <ul>
+     * <li>{@link org.rocksdb.CompressionType#NO_COMPRESSION}</li>
+     * <li>{@link org.rocksdb.CompressionType#SNAPPY_COMPRESSION}</li>
+     * <li>{@link org.rocksdb.CompressionType#ZLIB_COMPRESSION}</li>
+     * </ul>
+     * For more details see {@link org.rocksdb.CompressionType}
+     *
+     * @param rocksdbCompressionType
+     */
+    public void setRocksdbCompressionType(CompressionType rocksdbCompressionType) {
+        this.rocksdbCompressionType = rocksdbCompressionType;
+    }
+
+    public int getRocksdbLevelZeroFileNumCompactionTrigger() {
+        return rocksdbLevelZeroFileNumCompactionTrigger;
+    }
+
+    /**
+     * Set the number of level 0 files that will trigger compaction.
+     * <p>
+     * For more details see {@link org.rocksdb.ColumnFamilyOptionsInterface#setLevelZeroFileNumCompactionTrigger}
+     *
+     * @param rocksdbLevelZeroFileNumCompactionTrigger
+     */
+    public void setRocksdbLevelZeroFileNumCompactionTrigger(int rocksdbLevelZeroFileNumCompactionTrigger) {
+        this.rocksdbLevelZeroFileNumCompactionTrigger = rocksdbLevelZeroFileNumCompactionTrigger;
+    }
+
+    public int getRocksdbLevelZeroSlowdownWritesTrigger() {
+        return rocksdbLevelZeroSlowdownWritesTrigger;
+    }
+
+    /**
+     * Set the number of level-0 files that will cause the system to start slowing down writes.
+     * <p>
+     * For more details see {@link org.rocksdb.ColumnFamilyOptionsInterface#setLevelZeroSlowdownWritesTrigger}
+     *
+     * @param rocksdbLevelZeroSlowdownWritesTrigger
+     */
+    public void setRocksdbLevelZeroSlowdownWritesTrigger(int rocksdbLevelZeroSlowdownWritesTrigger) {
+        this.rocksdbLevelZeroSlowdownWritesTrigger = rocksdbLevelZeroSlowdownWritesTrigger;
+    }
+
+    public int getRocksdbLevelZeroStopWritesTrigger() {
+        return rocksdbLevelZeroStopWritesTrigger;
+    }
+
+    /**
+     * Set the maximum number of level-0 files.  Once this number is reached the system stops
+     * handling writes.
+     * <p>
+     * For more details see {@link org.rocksdb.ColumnFamilyOptionsInterface#setLevelZeroStopWritesTrigger}
+     *
+     * @param rocksdbLevelZeroStopWritesTrigger
+     */
+    public void setRocksdbLevelZeroStopWritesTrigger(int rocksdbLevelZeroStopWritesTrigger) {
+        this.rocksdbLevelZeroStopWritesTrigger = rocksdbLevelZeroStopWritesTrigger;
+    }
+
+    public int getRocksdbMaxBackgroundCompactions() {
+        return rocksdbMaxBackgroundCompactions;
+    }
+
+    /**
+     * Set the maximum number of concurrent compactions that can occur.
+     *
+     * @param rocksdbMaxBackgroundCompactions
+     */
+    public void setRocksdbMaxBackgroundCompactions(int rocksdbMaxBackgroundCompactions) {
+        this.rocksdbMaxBackgroundCompactions = rocksdbMaxBackgroundCompactions;
+    }
+
+    public int getRocksdbMaxBackgroundFlushes() {
+        return rocksdbMaxBackgroundFlushes;
+    }
+
+    /**
+     * Set the maximum number of concurrent flushes that can occur.
+     *
+     * @param rocksdbMaxBackgroundFlushes
+     */
+    public void setRocksdbMaxBackgroundFlushes(int rocksdbMaxBackgroundFlushes) {
+        this.rocksdbMaxBackgroundFlushes = rocksdbMaxBackgroundFlushes;
+    }
+
+    public long getRocksdbMaxBytesForLevelBase() {
+        return rocksdbMaxBytesForLevelBase;
+    }
+
+    /**
+     * Set the upper-bound of the total size of level-1 files in bytes.
+     * <p>
+     * For more details see {@link org.rocksdb.ColumnFamilyOptionsInterface#setMaxBytesForLevelBase}
+     *
+     * @param rocksdbMaxBytesForLevelBase
+     */
+    public void setRocksdbMaxBytesForLevelBase(long rocksdbMaxBytesForLevelBase) {
+        this.rocksdbMaxBytesForLevelBase = rocksdbMaxBytesForLevelBase;
+    }
+
+    public int getRocksdbMaxWriteBufferNumber() {
+        return rocksdbMaxWriteBufferNumber;
+    }
+
+    /**
+     * Set the maximum number of write buffers that can be built up in memory.
+     * <p>
+     * For more details see {@link org.rocksdb.ColumnFamilyOptionsInterface#maxWriteBufferNumber}
+     *
+     * @param rocksdbMaxWriteBufferNumber
+     */
+    public void setRocksdbMaxWriteBufferNumber(int rocksdbMaxWriteBufferNumber) {
+        this.rocksdbMaxWriteBufferNumber = rocksdbMaxWriteBufferNumber;
+    }
+
+    public int getRocksdbStatsDumpPeriodSec() {
+        return rocksdbStatsDumpPeriodSec;
+    }
+
+    /**
+     * Set how often the database summary statistics are written to the log file.
+     *
+     * @param rocksdbStatsDumpPeriodSec
+     */
+    public void setRocksdbStatsDumpPeriodSec(int rocksdbStatsDumpPeriodSec) {
+        this.rocksdbStatsDumpPeriodSec = rocksdbStatsDumpPeriodSec;
+    }
+
+    public long getRocksdbTargetFileSizeBase() {
+        return rocksdbTargetFileSizeBase;
+    }
+
+    /**
+     * Set the target file size for compaction.  This value determines a level-1 file size.
+     * <p>
+     * For more details see {@link org.rocksdb.ColumnFamilyOptionsInterface#setTargetFileSizeBase}
+     *
+     * @param rocksdbTargetFileSizeBase
+     */
+    public void setRocksdbTargetFileSizeBase(long rocksdbTargetFileSizeBase) {
+        this.rocksdbTargetFileSizeBase = rocksdbTargetFileSizeBase;
+    }
+
+    public int getRocksdbTargetFileSizeMultiplier() {
+        return rocksdbTargetFileSizeMultiplier;
+    }
+
+    /**
+     * Set the size ratio between a level-L file and level-(L+1) file.
+     * <p>
+     * For more details see {@link org.rocksdb.ColumnFamilyOptionsInterface#setTargetFileSizeMultiplier}
+     *
+     * @param rocksdbTargetFileSizeMultiplier
+     */
+    public void setRocksdbTargetFileSizeMultiplier(int rocksdbTargetFileSizeMultiplier) {
+        this.rocksdbTargetFileSizeMultiplier = rocksdbTargetFileSizeMultiplier;
+    }
+
+    public long getRocksdbWriteBufferSize() {
+        return rocksdbWriteBufferSize;
+    }
+
+    /**
+     * Set the size of the memory buffers (backed by an unsorted log on disk) that hold the data
+     * before it is flushed to a sorted on-disk file.
+     * <p>
+     * For more details see {@link org.rocksdb.ColumnFamilyOptionsInterface#setWriteBufferSize}
+     *
+     * @param rocksdbWriteBufferSize
+     */
+    public void setRocksdbWriteBufferSize(long rocksdbWriteBufferSize) {
+        this.rocksdbWriteBufferSize = rocksdbWriteBufferSize;
+    }
 }
