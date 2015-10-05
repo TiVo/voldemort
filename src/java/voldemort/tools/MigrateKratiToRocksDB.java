@@ -77,9 +77,14 @@ public class MigrateKratiToRocksDB {
                 ClosableIterator<Pair<ByteArray, Versioned<byte[]>>> kratiEntries = kratiStore.entries();
                 while (kratiEntries.hasNext()) {
                     Pair<ByteArray, Versioned<byte[]>> kratiEntry = kratiEntries.next();
+                    long startTime = System.currentTimeMillis();
                     rocksdbStore.put(kratiEntry.getFirst(), kratiEntry.getSecond(), null);
+                    long deltaTime = System.currentTimeMillis() - startTime;
+                    if (deltaTime >= 1000) {
+                        logger.warn("Slow migration (ms): " + deltaTime);
+                    }
                     numEntries++;
-                    if (System.currentTimeMillis() - lastLogTime > LOG_INTERVAL_MS) {
+                    if (System.currentTimeMillis() - lastLogTime >= LOG_INTERVAL_MS) {
                         logger.info("Continuing migration of: " + kratiStore.getName() + "; Number of entries migrated: " + numEntries);
                         lastLogTime = System.currentTimeMillis();
                     }
