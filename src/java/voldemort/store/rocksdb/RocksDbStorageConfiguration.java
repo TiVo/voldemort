@@ -1,15 +1,18 @@
 package voldemort.store.rocksdb;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.log4j.Logger;
-import org.rocksdb.CompactionStyle;
-import org.rocksdb.CompressionType;
-import org.rocksdb.Options;
+import org.rocksdb.ColumnFamilyDescriptor;
+import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.ColumnFamilyOptions;
+import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
-import org.rocksdb.util.SizeUnit;
 
 import voldemort.routing.RoutingStrategy;
 import voldemort.server.VoldemortConfig;
@@ -19,7 +22,6 @@ import voldemort.store.StorageInitializationException;
 import voldemort.store.StoreBinaryFormat;
 import voldemort.store.StoreDefinition;
 import voldemort.utils.ByteArray;
-import voldemort.utils.Props;
 
 public class RocksDbStorageConfiguration implements StorageConfiguration {
 
@@ -56,38 +58,42 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
 
             new File(dataDir).mkdirs();
 
+            Properties dbProperties = parseProperties(VoldemortConfig.ROCKSDB_DB_OPTIONS);
+            DBOptions dbOptions = (dbProperties.size() > 0) ?
+                    DBOptions.getDBOptionsFromProps(dbProperties) : new DBOptions();
+            if (dbOptions == null) {
+                throw new StorageInitializationException("Unable to parse Data Base Options.");
+            }
+            dbOptions.setCreateIfMissing(true);
+            dbOptions.createStatistics();
+
+            Properties cfProperties = parseProperties(VoldemortConfig.ROCKSDB_CF_OPTIONS);
+            if(this.voldemortconfig.getRocksdbPrefixKeysWithPartitionId()) {
+                cfProperties.setProperty("prefix_extractor", "fixed:" + StoreBinaryFormat.PARTITIONID_PREFIX_SIZE);
+            }
+            ColumnFamilyOptions cfOptions = (cfProperties.size() > 0) ?
+                    ColumnFamilyOptions.getColumnFamilyOptionsFromProps(cfProperties) : new ColumnFamilyOptions();
+            if (cfOptions == null) {
+                throw new StorageInitializationException("Unable to parse Column Family Options.");
+            }
+
+            // Create the default Column Family.
+            List<ColumnFamilyDescriptor> cfdList = new ArrayList<ColumnFamilyDescriptor>();
+            cfdList.add(new ColumnFamilyDescriptor("default".getBytes(), cfOptions));
+            List<ColumnFamilyHandle> cfhList = new ArrayList<ColumnFamilyHandle>();
+
             try {
-                Options rdbOptions = new Options()
-                        .setCreateIfMissing(true)
-                        .createStatistics()
-                        .setCompactionStyle(voldemortconfig.getRocksdbCompactionStyle())
-                        .setCompressionType(voldemortconfig.getRocksdbCompressionType())
-                        .setLevelZeroFileNumCompactionTrigger(voldemortconfig.getRocksdbLevelZeroFileNumCompactionTrigger())
-                        .setLevelZeroSlowdownWritesTrigger(voldemortconfig.getRocksdbLevelZeroSlowdownWritesTrigger())
-                        .setLevelZeroStopWritesTrigger(voldemortconfig.getRocksdbLevelZeroStopWritesTrigger())
-                        .setMaxBackgroundCompactions(voldemortconfig.getRocksdbMaxBackgroundCompactions())
-                        .setMaxBackgroundFlushes(voldemortconfig.getRocksdbMaxBackgroundFlushes())
-                        .setMaxBytesForLevelBase(voldemortconfig.getRocksdbMaxBytesForLevelBase())
-                        .setMaxWriteBufferNumber(voldemortconfig.getRocksdbMaxWriteBufferNumber())
-                        .setStatsDumpPeriodSec(voldemortconfig.getRocksdbStatsDumpPeriodSec())
-                        .setTargetFileSizeBase(voldemortconfig.getRocksdbTargetFileSizeBase())
-                        .setTargetFileSizeMultiplier(voldemortconfig.getRocksdbTargetFileSizeMultiplier())
-                        .setWriteBufferSize(voldemortconfig.getRocksdbWriteBufferSize());
-
-                logDbOptions(rdbOptions);
-
-                RocksDB rdbStore = null;
+                RocksDB rdbStore;
                 RocksDbStorageEngine rdbStorageEngine;
                 if(this.voldemortconfig.getRocksdbPrefixKeysWithPartitionId()) {
-                    rdbOptions.useFixedLengthPrefixExtractor(StoreBinaryFormat.PARTITIONID_PREFIX_SIZE);
-                    rdbStore = RocksDB.open(rdbOptions, dataDir);
+                    rdbStore = RocksDB.open(dbOptions, dataDir, cfdList, cfhList);
                     rdbStorageEngine = new PartitionPrefixedRocksDbStorageEngine(storeName,
                                                                                  rdbStore,
                                                                                  lockStripes,
                                                                                  strategy,
                                                                                  voldemortconfig.isRocksdbEnableReadLocks());
                 } else {
-                    rdbStore = RocksDB.open(rdbOptions, dataDir);
+                    rdbStore = RocksDB.open(dbOptions, dataDir, cfdList, cfhList);
                     rdbStorageEngine = new RocksDbStorageEngine(storeName,
                                                                 rdbStore,
                                                                 lockStripes,
@@ -102,21 +108,15 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
         return stores.get(storeName);
     }
 
-    private void logDbOptions(Options rdbOptions) {
-        Options defaults = new Options();
-        logger.info("RocksBD Option: compactionStyle = " + rdbOptions.compactionStyle() + " (default = " + defaults.compactionStyle() + ")");
-        logger.info("RocksBD Option: compressionType = " + rdbOptions.compressionType() + " (default = " + defaults.compressionType() + ")");
-        logger.info("RocksBD Option: levelZeroFileNumCompactionTrigger = " + rdbOptions.levelZeroFileNumCompactionTrigger() + " (default = " + defaults.levelZeroFileNumCompactionTrigger() + ")");
-        logger.info("RocksBD Option: levelZeroSlowdownWritesTrigger = " + rdbOptions.levelZeroSlowdownWritesTrigger() + " (default = " + defaults.levelZeroSlowdownWritesTrigger() + ")");
-        logger.info("RocksBD Option: levelZeroStopWritesTrigger = " + rdbOptions.levelZeroStopWritesTrigger() + " (default = " + defaults.levelZeroStopWritesTrigger() + ")");
-        logger.info("RocksBD Option: maxBackgroundCompactions = " + rdbOptions.maxBackgroundCompactions() + " (default = " + defaults.maxBackgroundCompactions() + ")");
-        logger.info("RocksBD Option: maxBackgroundFlushes = " + rdbOptions.maxBackgroundFlushes() + " (default = " + defaults.maxBackgroundFlushes() + ")");
-        logger.info("RocksBD Option: maxBytesForLevelBase = " + rdbOptions.maxBytesForLevelBase() + " (default = " + defaults.maxBytesForLevelBase() + ")");
-        logger.info("RocksBD Option: maxWriteBufferNumber = " + rdbOptions.maxWriteBufferNumber() + " (default = " + defaults.maxWriteBufferNumber() + ")");
-        logger.info("RocksBD Option: statsDumpPeriodSec = " + rdbOptions.statsDumpPeriodSec() + " (default = " + defaults.statsDumpPeriodSec() + ")");
-        logger.info("RocksBD Option: targetFileSizeBase = " + rdbOptions.targetFileSizeBase() + " (default = " + defaults.targetFileSizeBase() + ")");
-        logger.info("RocksBD Option: targetFileSizeMultiplier = " + rdbOptions.targetFileSizeMultiplier() + " (default = " + defaults.targetFileSizeMultiplier() + ")");
-        logger.info("RocksBD Option: writeBufferSize = " + rdbOptions.writeBufferSize() + " (default = " + defaults.writeBufferSize() + ")");
+    private Properties parseProperties(String prefix) {
+        Properties properties = new Properties();
+        for (Map.Entry<String, String> entry : voldemortconfig.getAllProps().entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith(prefix)) {
+                properties.put(key. substring(prefix.length()), entry.getValue());
+            }
+        }
+        return properties;
     }
 
     @Override
