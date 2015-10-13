@@ -406,6 +406,14 @@ tasks.withType(Test) {
 
 task wrapper(type: Wrapper) { gradleVersion = '2.0' }
 
+// Turn Javadoc errors back into warnings in Java 8
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
 
 dependencies {
     // Avro serialization format
@@ -579,7 +587,7 @@ dependencies {
     compile 'org.apache.hadoop:libthrift:0.5.0.0'
 
     // rocksdb from maven
-    compile 'org.rocksdb:rocksdbjni:3.13.1-digitalsmiths-2'
+    compile 'org.rocksdb:rocksdbjni:3.13.1-digitalsmiths-3'
 }
 
 eclipse {
