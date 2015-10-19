@@ -65,6 +65,7 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
                 throw new StorageInitializationException("Unable to parse Data Base Options.");
             }
             dbOptions.setCreateIfMissing(true);
+            dbOptions.setCreateMissingColumnFamilies(true);
             dbOptions.createStatistics();
 
             Properties cfProperties = parseProperties(VoldemortConfig.ROCKSDB_CF_OPTIONS);
@@ -77,25 +78,30 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
                 throw new StorageInitializationException("Unable to parse Column Family Options.");
             }
 
-            // Create the default Column Family.
-            List<ColumnFamilyDescriptor> cfdList = new ArrayList<ColumnFamilyDescriptor>();
-            cfdList.add(new ColumnFamilyDescriptor("default".getBytes(), cfOptions));
-            List<ColumnFamilyHandle> cfhList = new ArrayList<ColumnFamilyHandle>();
+            // Create a non default Column Family tp hold the store data.
+            List<ColumnFamilyDescriptor> descriptors = new ArrayList<ColumnFamilyDescriptor>();
+            descriptors.add(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOptions));
+            descriptors.add(new ColumnFamilyDescriptor(storeName.getBytes(), cfOptions));
+            List<ColumnFamilyHandle> handles = new ArrayList<ColumnFamilyHandle>();
 
             try {
-                RocksDB rdbStore;
+                RocksDB rdbStore = RocksDB.open(dbOptions, dataDir, descriptors, handles);
+                ColumnFamilyHandle storeHandle = handles.get(1);
+
                 RocksDbStorageEngine rdbStorageEngine;
                 if(this.voldemortconfig.getRocksdbPrefixKeysWithPartitionId()) {
-                    rdbStore = RocksDB.open(dbOptions, dataDir, cfdList, cfhList);
                     rdbStorageEngine = new PartitionPrefixedRocksDbStorageEngine(storeName,
                                                                                  rdbStore,
+                                                                                 storeHandle,
+                                                                                 cfOptions,
                                                                                  lockStripes,
                                                                                  strategy,
                                                                                  voldemortconfig.isRocksdbEnableReadLocks());
                 } else {
-                    rdbStore = RocksDB.open(dbOptions, dataDir, cfdList, cfhList);
                     rdbStorageEngine = new RocksDbStorageEngine(storeName,
                                                                 rdbStore,
+                                                                storeHandle,
+                                                                cfOptions,
                                                                 lockStripes,
                                                                 voldemortconfig.isRocksdbEnableReadLocks());
                 }
