@@ -94,10 +94,17 @@ public class RocksDbStorageEngine extends AbstractStorageEngine<ByteArray, byte[
     public void truncate() {
         try {
             rocksDB.dropColumnFamily(storeHandle);
+            storeHandle.dispose();
             storeHandle = rocksDB.createColumnFamily(new ColumnFamilyDescriptor(getName().getBytes(), storeOptions));
         } catch (RocksDBException e) {
             throw new VoldemortException("Failed to truncate DB", e);
         }
+    }
+
+    @Override
+    public void close() throws VoldemortException {
+        storeHandle.dispose();
+        rocksDB.close();
     }
 
     private List<Versioned<byte[]>> getValueForKey(ByteArray key, byte[] transforms)

@@ -138,7 +138,7 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
     @Override
     public void close() {
         for(RocksDbStorageEngine rdbStorageEngine: stores.values()) {
-            rdbStorageEngine.getRocksDB().close();
+            rdbStorageEngine.close();
         }
 
         stores.clear();
@@ -148,7 +148,7 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
     public void removeStorageEngine(StorageEngine<ByteArray, byte[], byte[]> engine) {
         RocksDbStorageEngine rdbStorageEngine = (RocksDbStorageEngine) engine;
 
-        rdbStorageEngine.getRocksDB().close();
+        rdbStorageEngine.close();
 
         stores.remove(rdbStorageEngine.getName());
     }
