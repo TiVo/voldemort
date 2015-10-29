@@ -86,6 +86,11 @@ public class RocksDbStorageConfiguration implements StorageConfiguration {
 
             try {
                 RocksDB rdbStore = RocksDB.open(dbOptions, dataDir, descriptors, handles);
+                // Dispose of the default Column Family immediately.  We don't use it and if it has not been disposed
+                // by the time the DB is closed then the RocksDB code can terminate abnormally (if the RocksDB code is
+                // built with assertions enabled). The handle will go out of scope on its own and the Java finalizer
+                // will (eventually) do this for us, but, that is not fast enough for the unit tests.
+                handles.get(0).dispose();
                 ColumnFamilyHandle storeHandle = handles.get(1);
 
                 RocksDbStorageEngine rdbStorageEngine;
