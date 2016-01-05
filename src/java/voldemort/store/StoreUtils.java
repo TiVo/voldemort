@@ -133,16 +133,32 @@ public class StoreUtils {
     public static void assertValidMetadata(ByteArray key,
                                            RoutingStrategy routingStrategy,
                                            Node currentNode) {
+        if (!isValidMetadata(key, routingStrategy, currentNode.getId())) {
+            throw new InvalidMetadataException("Client accessing key belonging to partitions "
+                                               + routingStrategy.getPartitionList(key.get())
+                                               + " not present at " + currentNode);}
+    }
+
+    /**
+     * Should this key be routed to the current node based on cluster.xml.
+     *
+     * @param key The key we are checking
+     * @param routingStrategy The routing strategy
+     * @param currentNode Current node
+     * @return true if the key should be routed to this node; otherwise false
+     */
+
+    public static boolean isValidMetadata(ByteArray key,
+                                          RoutingStrategy routingStrategy,
+                                          int currentNode) {
         List<Node> nodes = routingStrategy.routeRequest(key.get());
         for(Node node: nodes) {
-            if(node.getId() == currentNode.getId()) {
-                return;
+            if(node.getId() == currentNode) {
+                return true;
             }
         }
 
-        throw new InvalidMetadataException("Client accessing key belonging to partitions "
-                                           + routingStrategy.getPartitionList(key.get())
-                                           + " not present at " + currentNode);
+        return false;
     }
 
     /**

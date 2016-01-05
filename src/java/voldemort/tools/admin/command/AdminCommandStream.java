@@ -36,7 +36,9 @@ import java.io.Writer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
+import com.google.common.base.Predicate;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
@@ -47,11 +49,15 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import voldemort.VoldemortException;
 import voldemort.client.protocol.admin.AdminClient;
+import voldemort.cluster.Cluster;
+import voldemort.routing.RoutingStrategy;
+import voldemort.routing.RoutingStrategyFactory;
 import voldemort.serialization.DefaultSerializerFactory;
 import voldemort.serialization.Serializer;
 import voldemort.serialization.SerializerDefinition;
 import voldemort.serialization.SerializerFactory;
 import voldemort.store.StoreDefinition;
+import voldemort.store.StoreUtils;
 import voldemort.store.compress.CompressionStrategy;
 import voldemort.store.compress.CompressionStrategyFactory;
 import voldemort.tools.admin.AdminParserUtils;
@@ -1006,11 +1012,76 @@ public class AdminCommandStream extends AbstractAdminCommand {
                     }
                 }
             }
+
+            ValidMetadataPredicateFactory factory = new ValidMetadataPredicateFactory(adminClient, nodeId);
+
             for(String storeName: storeNames) {
+                // This predicate will be used to determine which keys in the backup file should be sent to this
+                // node. If the configuration has not changed it should always return true and therefore allow
+                // all keys to be sent.  If the configuration has changed (number of nodes, replication factor)
+                // it may filter out many of the keys.  This allows the data to be cloned using the fetch/update
+                // tools between clusters with different configurations.
+                Predicate<ByteArray> isValid = factory.createPredicate(storeName);
                 Iterator<Pair<ByteArray, Versioned<byte[]>>> iterator = readEntriesBinary(inDir,
-                                                                                          storeName);
+                                                                                          storeName,
+                                                                                          isValid);
                 adminClient.streamingOps.updateEntries(nodeId, storeName, iterator, null);
             }
+        }
+    }
+
+    /**
+     * This Predicate is used to determine if a specific key should be sent to a specific node based on the
+     * routing strategy for that store.
+     */
+    private static class ValidMetadataPredicate implements Predicate<ByteArray> {
+
+        private final RoutingStrategy routingStrategy;
+        private final int node;
+
+        public ValidMetadataPredicate(RoutingStrategy routingStrategy, int currentNode) {
+            this.routingStrategy = routingStrategy;
+            this.node = currentNode;
+        }
+
+        @Override
+        public boolean apply(ByteArray key) {
+            return StoreUtils.isValidMetadata(key, routingStrategy, node);
+        }
+    }
+
+    /**
+     * Factory for creating a ValidMetadataPredicate using the current cluster and store definitions.
+     */
+    public static class ValidMetadataPredicateFactory {
+
+        private final int nodeId;
+        private final Cluster cluster;
+        private final Map<String, StoreDefinition> storesDefinitionsMap = new HashMap<String, StoreDefinition>();
+        private final RoutingStrategyFactory strategyFactory;
+
+        public ValidMetadataPredicateFactory(AdminClient adminClient,
+                                             int nodeId) {
+            this.nodeId = nodeId;
+            cluster = adminClient.metadataMgmtOps.getRemoteCluster(nodeId).getValue();
+            for (StoreDefinition definition : adminClient.metadataMgmtOps.getRemoteStoreDefList(nodeId).getValue()) {
+                storesDefinitionsMap.put(definition.getName(), definition);
+            }
+
+            strategyFactory = new RoutingStrategyFactory();
+        }
+
+        public Predicate<ByteArray> createPredicate(String storeName) {
+            StoreDefinition definition = storesDefinitionsMap.get(storeName);
+            if (definition == null) {
+                throw new VoldemortException("No store definition file could be found for store '"
+                        + storeName + "' on Voldemort node " + nodeId);
+            }
+            // The method name "updateRoutingStrategy" is misleading. It does not change an existing strategy.  All it
+            // does is create a local copy of the strategy that the far end server node should be using (based on the
+            // store and cluster definitions it provided when the factory was created).
+            RoutingStrategy strategy = strategyFactory.updateRoutingStrategy(definition, cluster);
+            return new ValidMetadataPredicate(strategy, nodeId);
         }
     }
 
@@ -1025,7 +1096,8 @@ public class AdminCommandStream extends AbstractAdminCommand {
     }
 
     private static Iterator<Pair<ByteArray, Versioned<byte[]>>> readEntriesBinary(File inputDir,
-                                                                                  String storeName)
+                                                                                  String storeName,
+                                                                                  final Predicate<ByteArray> isValid)
             throws IOException {
         File inputFile = new File(inputDir, storeName + ".entries");
         if(!inputFile.exists()) {
@@ -1040,19 +1112,25 @@ public class AdminCommandStream extends AbstractAdminCommand {
             @Override
             protected Pair<ByteArray, Versioned<byte[]>> computeNext() {
                 try {
-                    int length = dis.readInt();
-                    byte[] keyBytes = new byte[length];
-                    ByteUtils.read(dis, keyBytes);
-                    length = dis.readInt();
-                    byte[] versionBytes = new byte[length];
-                    ByteUtils.read(dis, versionBytes);
-                    length = dis.readInt();
-                    byte[] valueBytes = new byte[length];
-                    ByteUtils.read(dis, valueBytes);
+                    ByteArray key;
+                    Versioned<byte[]> value;
+                    // Loop until the a key can be found that should be sent to this node (or the file ends).
+                    // If the configuration has not changed then no looping should be required.
+                    do {
+                        int length = dis.readInt();
+                        byte[] keyBytes = new byte[length];
+                        ByteUtils.read(dis, keyBytes);
+                        length = dis.readInt();
+                        byte[] versionBytes = new byte[length];
+                        ByteUtils.read(dis, versionBytes);
+                        length = dis.readInt();
+                        byte[] valueBytes = new byte[length];
+                        ByteUtils.read(dis, valueBytes);
 
-                    ByteArray key = new ByteArray(keyBytes);
-                    VectorClock version = new VectorClock(versionBytes);
-                    Versioned<byte[]> value = new Versioned<byte[]>(valueBytes, version);
+                        key = new ByteArray(keyBytes);
+                        VectorClock version = new VectorClock(versionBytes);
+                        value = new Versioned<byte[]>(valueBytes, version);
+                    } while (!isValid.apply(key));
 
                     return new Pair<ByteArray, Versioned<byte[]>>(key, value);
                 } catch(EOFException e) {
