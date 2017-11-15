@@ -46,6 +46,7 @@ import voldemort.store.StoreDefinitionBuilder;
 import voldemort.store.bdb.BdbStorageConfiguration;
 import voldemort.store.krati.KratiStorageConfiguration;
 import voldemort.store.readonly.ReadOnlyStorageConfiguration;
+import voldemort.store.rocksdb.RocksDbStorageConfiguration;
 import voldemort.tools.PartitionBalance;
 import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
@@ -63,6 +64,7 @@ public class RebalanceUtils {
 
     public final static List<String> canRebalanceList = Arrays.asList(BdbStorageConfiguration.TYPE_NAME,
                                                                       KratiStorageConfiguration.TYPE_NAME,
+                                                                      RocksDbStorageConfiguration.TYPE_NAME,
                                                                       ReadOnlyStorageConfiguration.TYPE_NAME);
 
     public final static String currentClusterFileName = "current-cluster.xml";
