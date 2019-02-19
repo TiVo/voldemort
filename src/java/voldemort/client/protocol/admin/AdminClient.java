@@ -2086,6 +2086,11 @@ public class AdminClient implements Closeable {
                     remoteValDef = JsonTypeDefinition.fromJson(remoteValueSerializerDef.getCurrentSchemaInfo());
                     localKeyDef = JsonTypeDefinition.fromJson(newKeySerializerDef.getCurrentSchemaInfo());
                     localValDef = JsonTypeDefinition.fromJson(newValueSerializerDef.getCurrentSchemaInfo());
+                }else if (newValSerDeName.equals(DefaultSerializerFactory.IDENTITY_SERIALIZER_TYPE_NAME)) {
+                    remoteKeyDef = "";
+                    remoteValDef = "";
+                    localKeyDef = "";
+                    localValDef = "";
                 } else {
                     throw new VoldemortException("verifyOrAddStore() only works with Avro Generic and JSON serialized stores!");
                 }

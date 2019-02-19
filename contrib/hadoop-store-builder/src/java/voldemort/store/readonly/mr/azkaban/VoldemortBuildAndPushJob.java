@@ -142,6 +142,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     public final static String VOLDEMORT_FETCHER_PROTOCOL = "voldemort.fetcher.protocol";
     public final static String VOLDEMORT_FETCHER_PORT = "voldemort.fetcher.port";
     public final static String AVRO_SERIALIZER_VERSIONED = "avro.serializer.versioned";
+    public final static String AVRO_SERIALIZED_INPUT = "avro.serialized.input";
     public final static String AVRO_KEY_FIELD = "avro.key.field";
     public final static String AVRO_VALUE_FIELD = "avro.value.field";
     public final static String HADOOP_JOB_UGI = "hadoop.job.ugi";
@@ -170,6 +171,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     private final String keyFieldName;
     private final String valueFieldName;
     private final boolean isAvroVersioned;
+    private final boolean isAvroSerialzedInput;
     private final long minNumberOfRecords;
     private final String hdfsFetcherPort;
     private final String hdfsFetcherProtocol;
@@ -280,6 +282,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         // Set default to false, this ensures existing clients who are not aware of
         // the new serializer type don't bail out
         this.isAvroVersioned = props.getBoolean(AVRO_SERIALIZER_VERSIONED, false);
+        this.isAvroSerialzedInput = props.getBoolean(AVRO_SERIALIZED_INPUT, false);
         this.keyFieldName = props.getString(AVRO_KEY_FIELD, null);
         this.valueFieldName = props.getString(AVRO_VALUE_FIELD, null);
         if(this.isAvroJob) {
@@ -609,7 +612,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             Map<String, Future<Boolean>> tasks = Maps.newHashMap();
             for (int index = 0; index < clusterURLs.size(); index++) {
                 String url = clusterURLs.get(index);
-                if (isAvroJob) {
+                if (isAvroSerialzedInput) {
+                    verifyOrAddIdentityStore(url);
+                } else if (isAvroJob) {
                     // Verify the schema if the store exists or else add the new store
                     verifyOrAddAvroStore(url, isAvroVersioned);
                 } else {
@@ -960,6 +965,13 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                          props.getString(BUILD_FORCE_SCHEMA_VALUE, valSchema));
     }
 
+    public void verifyOrAddIdentityStore(String url) {
+        String schema = "\n\t\t<type>" + DefaultSerializerFactory.IDENTITY_SERIALIZER_TYPE_NAME + "</type>\n\t";
+        verifyOrAddStore(url,
+                props.getString(BUILD_FORCE_SCHEMA_KEY, schema),
+                props.getString(BUILD_FORCE_SCHEMA_VALUE, schema));
+    }
+    
     public void verifyOrAddAvroStore(String url, boolean isVersioned) throws Exception {
         Schema schema = getInputPathAvroSchema();
         String serializerName;

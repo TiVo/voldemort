@@ -34,6 +34,7 @@ import org.apache.hadoop.mapred.Reporter;
 
 import org.apache.log4j.Logger;
 import voldemort.VoldemortException;
+import voldemort.serialization.ByteBufferSerializer;
 import voldemort.serialization.DefaultSerializerFactory;
 import voldemort.serialization.Serializer;
 import voldemort.serialization.SerializerDefinition;
@@ -170,6 +171,9 @@ public class AvroStoreBuilderMapper extends
             if(keySerializerDefinition.getName().equals(DefaultSerializerFactory.AVRO_GENERIC_TYPE_NAME)) {
                 keySerializer = new AvroGenericSerializer(keySchema);
                 valueSerializer = new AvroGenericSerializer(valSchema);
+            } else if (keySerializerDefinition.getName().equals(DefaultSerializerFactory.IDENTITY_SERIALIZER_TYPE_NAME)) {
+                keySerializer = new ByteBufferSerializer();
+                valueSerializer = new ByteBufferSerializer();
             } else {
 
                 if(keySerializerDefinition.hasVersion()) {
